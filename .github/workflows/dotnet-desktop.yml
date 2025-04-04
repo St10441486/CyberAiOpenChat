@@ -26,10 +26,11 @@ jobs:
       run: choco install -y windows-sdk-10.0 --no-progress
 
     - name: Show solution structure
+      shell: cmd
       run: |
         dir /s /b
         if not exist "%SOLUTION_PATH%" (
-          echo "##[error]Solution file not found!"
+          echo ##[error]Solution file not found!
           exit 1
         )
 
@@ -37,14 +38,16 @@ jobs:
       run: dotnet restore "%SOLUTION_PATH%"
 
     - name: Build solution
+      shell: cmd
       run: |
-        dotnet build "%SOLUTION_PATH%" `
-          --configuration Release `
-          --no-restore `
+        dotnet build "%SOLUTION_PATH%" ^
+          --configuration Release ^
+          --no-restore ^
           --verbosity detailed
         if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
     - name: Prepare certificate
+      shell: pwsh
       run: |
         $certBytes = [Convert]::FromBase64String("${{ secrets.PFX_BASE64 }}")
         $certPath = "CyberAiOpenChat.Package/sign.pfx"
@@ -52,22 +55,24 @@ jobs:
         dir CyberAiOpenChat.Package
 
     - name: Build package
+      shell: cmd
       run: |
-        msbuild "%WAP_PROJECT_PATH%" `
-          /p:Configuration=Release `
-          /p:AppxBundle=Always `
-          /p:UapAppxPackageBuildMode=StoreUpload `
-          /p:PackageCertificateKeyFile=sign.pfx `
-          /p:PackageCertificatePassword="${{ secrets.PFX_PASSWORD }}" `
-          /p:AppxPackageDir="$(Build.ArtifactStagingDirectory)/AppPackages/" `
+        msbuild "%WAP_PROJECT_PATH%" ^
+          /p:Configuration=Release ^
+          /p:AppxBundle=Always ^
+          /p:UapAppxPackageBuildMode=StoreUpload ^
+          /p:PackageCertificateKeyFile=sign.pfx ^
+          /p:PackageCertificatePassword="${{ secrets.PFX_PASSWORD }}" ^
+          /p:AppxPackageDir=%BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages\\ ^
           /verbosity:diagnostic
         if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
     - name: Verify package
+      shell: cmd
       run: |
-        dir "$(Build.ArtifactStagingDirectory)/AppPackages" /s
-        if not exist "$(Build.ArtifactStagingDirectory)/AppPackages/*.msix" (
-          echo "##[error]No MSIX package created!"
+        dir %BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages /s
+        if not exist %BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages\\*.msix (
+          echo ##[error]No MSIX package created!
           exit 1
         )
 
@@ -75,4 +80,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AppPackage
-        path: $(Build.ArtifactStagingDirectory)/AppPackages/**/*.msix
+        path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/AppPackages/**/*.msix
