@@ -1,4 +1,4 @@
-name: .NET Core Desktop Build
+name: .NET Desktop Build and Package
 
 on:
   push:
@@ -6,70 +6,73 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  SOLUTION_PATH: CyberAiOpenChat.sln
+  WAP_PROJECT_PATH: CyberAiOpenChat.Package/CyberAiOpenChat.Package.wapproj
+
 jobs:
   build:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        configuration: [Release]
-
-    env:
-      Solution_Name: CyberAiOpenChat.sln
-      Wap_Project_Directory: CyberAiOpenChat.Package
-      Wap_Project_Path: CyberAiOpenChat.Package\CyberAiOpenChat.Package.wapproj
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Show directory structure
-      run: tree /F /A
 
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Install Windows SDK
+      run: choco install -y windows-sdk-10.0 --no-progress
 
-    - name: Restore NuGet packages
-      run: nuget restore ${{ env.Solution_Name }}
+    - name: Show solution structure
+      run: |
+        dir /s /b
+        if not exist "%SOLUTION_PATH%" (
+          echo "##[error]Solution file not found!"
+          exit 1
+        )
+
+    - name: Restore packages
+      run: dotnet restore "%SOLUTION_PATH%"
 
     - name: Build solution
       run: |
-        msbuild ${{ env.Solution_Name }} `
-          /p:Configuration=${{ matrix.configuration }} `
-          /p:Platform="Any CPU" `
-          /verbosity:diagnostic
+        dotnet build "%SOLUTION_PATH%" `
+          --configuration Release `
+          --no-restore `
+          --verbosity detailed
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
-    - name: Decode certificate
+    - name: Prepare certificate
       run: |
-        $pfxBytes = [Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
-        $certPath = "${{ env.Wap_Project_Directory }}\SigningCert.pfx"
-        [IO.File]::WriteAllBytes($certPath, $pfxBytes)
+        $certBytes = [Convert]::FromBase64String("${{ secrets.PFX_BASE64 }}")
+        $certPath = "CyberAiOpenChat.Package/sign.pfx"
+        [IO.File]::WriteAllBytes($certPath, $certBytes)
+        dir CyberAiOpenChat.Package
 
     - name: Build package
       run: |
-        msbuild ${{ env.Wap_Project_Path }} `
-          /p:Configuration=${{ matrix.configuration }} `
+        msbuild "%WAP_PROJECT_PATH%" `
+          /p:Configuration=Release `
           /p:AppxBundle=Always `
           /p:UapAppxPackageBuildMode=StoreUpload `
-          /p:PackageCertificateKeyFile=SigningCert.pfx `
-          /p:PackageCertificatePassword="${{ secrets.Pfx_Key }}" `
-          /p:AppxPackageDir="$(Build.ArtifactStagingDirectory)\" `
+          /p:PackageCertificateKeyFile=sign.pfx `
+          /p:PackageCertificatePassword="${{ secrets.PFX_PASSWORD }}" `
+          /p:AppxPackageDir="$(Build.ArtifactStagingDirectory)/AppPackages/" `
           /verbosity:diagnostic
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
-    - name: Verify artifacts
+    - name: Verify package
       run: |
-        Get-ChildItem "$(Build.ArtifactStagingDirectory)" -Recurse -Include *.msix,*.appx | Format-Table -AutoSize
-        if (!(Test-Path "$(Build.ArtifactStagingDirectory)\*.msix")) {
-          Write-Host "##[error]No MSIX package created!"
+        dir "$(Build.ArtifactStagingDirectory)/AppPackages" /s
+        if not exist "$(Build.ArtifactStagingDirectory)/AppPackages/*.msix" (
+          echo "##[error]No MSIX package created!"
           exit 1
-        }
+        )
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: AppPackage
-        path: $(Build.ArtifactStagingDirectory)/*.msix
+        path: $(Build.ArtifactStagingDirectory)/AppPackages/**/*.msix
