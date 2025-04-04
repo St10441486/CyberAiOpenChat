@@ -7,9 +7,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-
   build:
-
     strategy:
       matrix:
         configuration: [Debug, Release]
@@ -17,10 +15,10 @@ jobs:
     runs-on: windows-latest
 
     env:
-      Solution_Name: CyberAiOpenChat.sln                     # Replace with your solution name
-      Test_Project_Path: CyberAiOpenChat.Tests\CyberAiOpenChat.Tests.csproj  # Replace with your test project path
-      Wap_Project_Directory: CyberAiOpenChat.Package         # Replace with your WAP project directory
-      Wap_Project_Path: CyberAiOpenChat.Package\CyberAiOpenChat.Package.wapproj  # Replace with your WAP project path
+      Solution_Name: CyberAiOpenChat.sln
+      Test_Project_Path: CyberAiOpenChat.Tests\CyberAiOpenChat.Tests.csproj
+      Wap_Project_Directory: CyberAiOpenChat.Package
+      Wap_Project_Path: CyberAiOpenChat.Package\CyberAiOpenChat.Package.wapproj
 
     steps:
     - name: Checkout
@@ -38,24 +36,31 @@ jobs:
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
 
+    # Debug: Display environment variables
+    - name: Display environment variables
+      run: |
+        echo "Solution Name: ${{ env.Solution_Name }}"
+        echo "Test Project Path: ${{ env.Test_Project_Path }}"
+        echo "Configuration: ${{ matrix.configuration }}"
+
     # Execute unit tests
     - name: Execute unit tests
       run: dotnet test ${{ env.Test_Project_Path }}
 
-    # Restore the application to populate the obj folder with RuntimeIdentifiers
+    # Restore the application
     - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration --verbosity normal
       env:
         Configuration: ${{ matrix.configuration }}
 
-    # Decode the base64 encoded pfx and save the Signing_Certificate
+    # Decode the pfx certificate
     - name: Decode the pfx
       run: |
         $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
         $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
         [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
 
-    # Create the app package by building and packaging the Windows Application Packaging project
+    # Create the app package
     - name: Create the app package
       run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=${{ secrets.Pfx_Key }}
       env:
@@ -64,7 +69,7 @@ jobs:
         Appx_Package_Build_Mode: StoreUpload
         Configuration: ${{ matrix.configuration }}
 
-    # Remove the pfx
+    # Remove the pfx file
     - name: Remove the pfx
       run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx
 
