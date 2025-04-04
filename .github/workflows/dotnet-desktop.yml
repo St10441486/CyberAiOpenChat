@@ -1,4 +1,4 @@
-name: .NET Desktop Build and Package
+name: .NET Core Desktop CI
 
 on:
   push:
@@ -13,11 +13,13 @@ env:
 jobs:
   build:
     runs-on: windows-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
 
-    - name: Setup .NET 8
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
@@ -25,36 +27,26 @@ jobs:
     - name: Install Windows SDK
       run: choco install -y windows-sdk-10.0 --no-progress
 
-    - name: Show solution structure
-      shell: cmd
+    - name: Clean solution
+      shell: pwsh
       run: |
-        dir /s /b
-        if not exist "%SOLUTION_PATH%" (
-          echo ##[error]Solution file not found!
-          exit 1
-        )
+        dotnet clean $env:SOLUTION_PATH
+        Get-ChildItem -Recurse -Include bin,obj | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-    - name: Restore packages
-      run: dotnet restore "%SOLUTION_PATH%"
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
 
     - name: Build solution
-      shell: cmd
-      run: |
-        dotnet build "%SOLUTION_PATH%" ^
-          --configuration Release ^
-          --no-restore ^
-          --verbosity detailed
-        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore --verbosity minimal
 
     - name: Prepare certificate
       shell: pwsh
       run: |
         $certBytes = [Convert]::FromBase64String("${{ secrets.PFX_BASE64 }}")
         $certPath = "CyberAiOpenChat.Package/sign.pfx"
-        [IO.File]::WriteAllBytes($certPath, $certBytes)
-        dir CyberAiOpenChat.Package
+        [System.IO.File]::WriteAllBytes($certPath, $certBytes)
 
-    - name: Build package
+    - name: Build MSIX package
       shell: cmd
       run: |
         msbuild "%WAP_PROJECT_PATH%" ^
@@ -63,15 +55,15 @@ jobs:
           /p:UapAppxPackageBuildMode=StoreUpload ^
           /p:PackageCertificateKeyFile=sign.pfx ^
           /p:PackageCertificatePassword="${{ secrets.PFX_PASSWORD }}" ^
-          /p:AppxPackageDir=%BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages\\ ^
-          /verbosity:diagnostic
+          /p:AppxPackageDir="%CD%\\AppPackages\\" ^
+          /verbosity:minimal
         if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
     - name: Verify package
       shell: cmd
       run: |
-        dir %BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages /s
-        if not exist %BUILD_ARTIFACTSTAGINGDIRECTORY%\\AppPackages\\*.msix (
+        dir AppPackages /s
+        if not exist AppPackages\\*.msix (
           echo ##[error]No MSIX package created!
           exit 1
         )
@@ -80,4 +72,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AppPackage
-        path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/AppPackages/**/*.msix
+        path: AppPackages/**/*.msix
