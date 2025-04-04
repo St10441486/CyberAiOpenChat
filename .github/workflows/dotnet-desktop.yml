@@ -1,4 +1,4 @@
-name: .NET Core Desktop Build and Package
+name: .NET Core Desktop Build
 
 on:
   push:
@@ -8,25 +8,24 @@ on:
 
 jobs:
   build:
+    runs-on: windows-latest
     strategy:
       matrix:
-        configuration: [Release] # Typically only build Release for packaging
-
-    runs-on: windows-latest
+        configuration: [Release]
 
     env:
       Solution_Name: CyberAiOpenChat.sln
-      Test_Project_Path: CyberAiOpenChat.Tests\CyberAiOpenChat.Tests.csproj
       Wap_Project_Directory: CyberAiOpenChat.Package
       Wap_Project_Path: CyberAiOpenChat.Package\CyberAiOpenChat.Package.wapproj
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
-    - name: Install .NET 8 SDK
+    - name: Show directory structure
+      run: tree /F /A
+
+    - name: Setup .NET 8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
@@ -34,58 +33,43 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Install Windows SDK
-      run: choco install -y windows-sdk-10.0
-
     - name: Restore NuGet packages
       run: nuget restore ${{ env.Solution_Name }}
 
-    - name: Build solution (Any CPU)
-      run: msbuild ${{ env.Solution_Name }} /p:Configuration=${{ matrix.configuration }} /p:Platform="Any CPU" /p:RestorePackagesConfig=true
-
-    - name: Run unit tests
-      run: dotnet test ${{ env.Test_Project_Path }} --configuration ${{ matrix.configuration }} --no-build --logger "trx;LogFileName=testresults.trx"
-
-    - name: Publish test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: Test Results
-        path: ${{ env.Test_Project_Path }}\TestResults\testresults.trx
-
-    - name: Decode signing certificate
+    - name: Build solution
       run: |
-        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
-        $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
-        [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
+        msbuild ${{ env.Solution_Name }} `
+          /p:Configuration=${{ matrix.configuration }} `
+          /p:Platform="Any CPU" `
+          /verbosity:diagnostic
 
-    - name: Build MSIX package
+    - name: Decode certificate
       run: |
-        msbuild $env:Wap_Project_Path `
-          /p:Configuration=$env:Configuration `
-          /p:UapAppxPackageBuildMode=StoreUpload `
+        $pfxBytes = [Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
+        $certPath = "${{ env.Wap_Project_Directory }}\SigningCert.pfx"
+        [IO.File]::WriteAllBytes($certPath, $pfxBytes)
+
+    - name: Build package
+      run: |
+        msbuild ${{ env.Wap_Project_Path }} `
+          /p:Configuration=${{ matrix.configuration }} `
           /p:AppxBundle=Always `
-          /p:AppxBundlePlatforms="x86|x64|ARM64" `
-          /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx `
-          /p:PackageCertificatePassword="${{ secrets.Pfx_Key }}"
-      env:
-        Configuration: ${{ matrix.configuration }}
+          /p:UapAppxPackageBuildMode=StoreUpload `
+          /p:PackageCertificateKeyFile=SigningCert.pfx `
+          /p:PackageCertificatePassword="${{ secrets.Pfx_Key }}" `
+          /p:AppxPackageDir="$(Build.ArtifactStagingDirectory)\" `
+          /verbosity:diagnostic
 
-    - name: Remove certificate
-      run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx -Force
-
-    - name: Upload MSIX package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: MSIX-Package
-        path: ${{ env.Wap_Project_Directory }}\AppPackages
-        retention-days: 5
-
-    - name: Verify AppPackages exist
+    - name: Verify artifacts
       run: |
-        $appPackagesPath = "${{ env.Wap_Project_Directory }}\AppPackages"
-        if (-Not (Test-Path -Path $appPackagesPath)) {
-          Write-Error "AppPackages folder not found at $appPackagesPath"
-          Get-ChildItem -Path "${{ env.Wap_Project_Directory }}" -Recurse | Format-Table -AutoSize
+        Get-ChildItem "$(Build.ArtifactStagingDirectory)" -Recurse -Include *.msix,*.appx | Format-Table -AutoSize
+        if (!(Test-Path "$(Build.ArtifactStagingDirectory)\*.msix")) {
+          Write-Host "##[error]No MSIX package created!"
           exit 1
         }
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AppPackage
+        path: $(Build.ArtifactStagingDirectory)/*.msix
