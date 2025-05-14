@@ -1,112 +1,147 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
+
+
 
 namespace CyberAiOpenChat
 {
-    public class ChatBotMenu // Start of ChatBotMenu class
+    public class ChatBotMenu
     {
         private string name; // Variable to store user name
         private AudioAndImage mediaHandler; // Handles audio and image-related functionalities
         private QuestionAndIgnore questionHandler; // Handles question processing
+        private MemoryManager memoryManager; // Handles memory storage and retrieval
+        private string userName; // Store validated username
+        private bool exit; // Control chatbot exit
 
-        public ChatBotMenu() // Start of Constructor
+        public ChatBotMenu()
         {
-            mediaHandler = new AudioAndImage(); // Initialize AudioAndImage class
-            questionHandler = new QuestionAndIgnore(); // Initialize QuestionAndIgnore class
-        } // End of Constructor
+            mediaHandler = new AudioAndImage();
+            questionHandler = new QuestionAndIgnore();
+            memoryManager = new MemoryManager(); // Initialize MemoryManager
+        }
 
-        public void Run() // Start of Run method
+        public void Run()
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            ShowLoading(); // Call loading animation
-            mediaHandler.DisplayLogo(); // Display chatbot logo
-            mediaHandler.PlayWelcomeAudio(); // Play welcome audio message
-            ChatMenu(); // Navigate to chatbot menu
-        } // End of Run method
+            ShowLoading();
+            mediaHandler.DisplayLogo();
+            mediaHandler.PlayWelcomeAudio();
+            ChatMenu();
+        }
 
-        private void ShowLoading(int seconds = 3) // Start of ShowLoading method
+        private void ShowLoading(int seconds = 3)
         {
-            Console.Write("\n The CSB (CyberAiOpenChat) is getting ready to help...");
+            Console.Write("\nThe CSB (CyberAiOpenChat) is getting ready to help");
             for (int i = 0; i < seconds; i++)
             {
                 Console.Write(".");
-                Thread.Sleep(1000); // Pause execution for 1 second per dot
+                Thread.Sleep(1000);
             }
             Console.WriteLine();
-        } // End of ShowLoading method
+        }
 
-        private void DelayText(string text, int delay = 50) // Start of DelayText method
+        private void DelayText(string text, int delay = 50)
         {
             foreach (char c in text)
             {
                 Console.Write(c);
-                Thread.Sleep(delay); // Delay character output for effect
+                Thread.Sleep(delay);
             }
             Console.WriteLine();
-        } // End of DelayText method
+        }
 
-        private void ChatMenu() // Start of ChatMenu method
+        private void ChatMenu()
         {
             Console.WriteLine("===================================================================================================");
-            Console.WriteLine("CSB AI: Please enter your full name (letters only):");
+            Console.WriteLine("CSB AI: Please enter your full name (letters and spaces only):");
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("User: ");
-            name = ValidateName(Console.ReadLine()); // Validate user input name
+            name = ValidateName(Console.ReadLine());
+            userName = name; // Assign validated name to userName
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("\n===================================================================================================");
             Console.WriteLine("CSB AI: Your full name is: " + name);
             Console.WriteLine("===================================================================================================");
 
-            bool run = true;
-
-            while (run) // Loop until user chooses to exit
+            while (!exit)
             {
-                DelayText($"\nWelcome {name}! How can I assist you today?", 40);
-                Console.ForegroundColor = ConsoleColor.DarkBlue;
-                DelayText("Would you like to ask me questions (yes|no) or type 'exit' to close:", 30);
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write("User: ");
-                string reply = Console.ReadLine()?.ToLower(); // Convert input to lowercase
-                Console.WriteLine("|===========================================================================================================|");
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("╔══════════════════════════════════════╗");
+                Console.WriteLine("║     CYBERSECURITY AWARENESS CHAT    ║");
+                Console.WriteLine("╚══════════════════════════════════════╝");
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"\nHello, {userName}! What would you like to do?\n");
 
-                switch (reply) // Handle user response
+                Console.WriteLine("1. Ask a cybersecurity question");
+                Console.WriteLine("2. View past conversations");
+                Console.WriteLine("3. Exit");
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write("\nEnter your choice (1-3): ");
+                string choice = Console.ReadLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+
+                switch (choice)
                 {
-                    case "yes":
-                        Console.WriteLine("\n|===========================================================================================================|");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        DelayText("You selected yes", 30);
-                        Console.WriteLine("|===========================================================================================================|");
-                        questionHandler.HandleQuestions(name);
+                    case "1":
+                        questionHandler.HandleQuestions(userName);
                         break;
-                    case "no":
-                    case "exit":
-                        Console.WriteLine("\n|===========================================================================================================|");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        DelayText("Goodbye, see you again soon!", 30);
-                        Console.WriteLine("|===========================================================================================================|");
-                        run = false; // Exit loop
+
+                    case "2":
+                        DisplayPastConversations();
                         break;
+
+                    case "3":
+                        Console.WriteLine("\nThank you for chatting. Stay safe online!");
+                        exit = true;
+                        break;
+
                     default:
-                        Console.WriteLine("\n|===========================================================================================================|");
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        DelayText("Invalid option, please try again.", 30);
-                        Console.WriteLine("|===========================================================================================================|");
+                        Console.WriteLine("Invalid input. Please enter a number between 1 and 3.");
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey();
                         break;
                 }
             }
-        } // End of ChatMenu method
+        }
 
-        private string ValidateName(string input) // Start of ValidateName method
+        private string ValidateName(string input)
         {
-            while (string.IsNullOrWhiteSpace(input) || !System.Text.RegularExpressions.Regex.IsMatch(input, "^[a-zA-Z ]+$"))
+            while (string.IsNullOrWhiteSpace(input) || !input.All(c => char.IsLetter(c) || char.IsWhiteSpace(c)))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Invalid name! Please enter a name with letters only.");
+                Console.WriteLine("Invalid name. Please use letters and spaces only.");
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write("User: ");
                 input = Console.ReadLine();
             }
-            return input;
-        } // End of ValidateName method
-    } // End of ChatBotMenu class
+            return input.Trim();
+        }
+
+        private void DisplayPastConversations()
+        {
+            Console.Clear();
+            Console.WriteLine("📜 Past Conversations:");
+
+            var history = memoryManager.LoadConversation();
+
+            if (history == null || !history.Any())
+            {
+                Console.WriteLine("No past conversations found.");
+            }
+            else
+            {
+                foreach (var entry in history)
+                {
+                    Console.WriteLine(entry);
+                }
+            }
+
+            Console.WriteLine("\nPress any key to return to the main menu...");
+            Console.ReadKey();
+        }
+    }
 }

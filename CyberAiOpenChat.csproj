@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="AudioAndImage.cs" />
     <Compile Include="ChatBotMenu.cs" />
+    <Compile Include="MemoryManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QuestionAndIgnore.cs" />
