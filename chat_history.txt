@@ -1,0 +1,32 @@
+User -> password
+Chat AI -> I'm only allowed to provide information about cybersecurity. Please ask a cybersecurity-related question.
+User -> password
+Chat AI -> I'm only allowed to provide information about cybersecurity. Please ask a cybersecurity-related question.
+User -> worried abot password
+Chat AI -> I see you're worried. Let's talk about it.
+User -> password
+Chat AI -> I couldn't find an answer. Try rephrasing your question.
+User -> password
+Chat AI -> I couldn't find an answer. Try rephrasing your question.
+User -> password
+Chat AI -> I couldn't find an answer. Try rephrasing your question.
+User -> password
+Chat AI -> password: Always use strong passwords with a mix of letters, numbers, and symbols.
+User -> password
+Chat AI -> password: Change your passwords regularly and avoid dictionary words.
+User -> phishing
+Chat AI -> phishing: Don’t click on suspicious links or attachments in unsolicited emails.
+User -> Worried about phishing
+Chat AI -> I see you're worried. Let's talk about it.
+User -> Worried about phishing
+Chat AI -> phishing: Be cautious of emails or messages asking for personal details; verify the sender.
+User -> WhaT IS PASSWORD
+Chat AI -> password: Avoid using the same password for multiple accounts.
+User -> password
+Chat AI -> password: Use complex passwords with at least 12 characters, including symbols and numbers.
+User -> phishing
+Chat AI -> phishing: Check for grammatical errors and unusual requests in emails.
+User -> Worried abot phishing
+Chat AI -> I see you're worried. Let's talk about it.
+User -> Worried abot phishing
+Chat AI -> phishing: Hover over links to verify their destination before clicking.

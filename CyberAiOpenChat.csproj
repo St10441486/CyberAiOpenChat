@@ -46,12 +46,17 @@
   <ItemGroup>
     <Compile Include="AudioAndImage.cs" />
     <Compile Include="ChatBotMenu.cs" />
+    <Compile Include="MemoryManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QuestionAndIgnore.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Ai.jpg" />
+    <Content Include="greeting.wav" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
